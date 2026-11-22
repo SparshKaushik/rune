@@ -52,4 +52,13 @@ impl Tx {
     pub fn focused(&self) -> Option<&str> {
         self.focused.as_deref()
     }
+
+    /// In a key handler, the focused element's accessibility role (`"button"`, `"textbox"`,
+    /// an app's own `El::role`); `None` when nothing had focus and outside key handlers.
+    pub fn focused_role(&self) -> Option<&str> { self.focused_role }
+
+    /// In a key handler, whether the focused element is a text field (a `text_input`, or a
+    /// virtual row's field scrolled out of view): the browser's `input`/`textarea`/
+    /// `contenteditable` focus. False outside key handlers.
+    pub fn focused_editable(&self) -> bool { self.focused_editable }
 }

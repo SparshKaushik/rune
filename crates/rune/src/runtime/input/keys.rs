@@ -7,6 +7,8 @@ impl<S: 'static> Runtime<S> {
     pub(super) fn route_key(&mut self, ev: &KeyEvent, repeat: bool, one: &mut Tx) -> bool {
         let physical_key = one.physical_key;
         one.focused = self.focused_key();
+        one.focused_role = self.focused_index().map(|i| self.nodes[i].role);
+        one.focused_editable = self.focused_input().is_some();
         if matches!(ev.key, crate::Key::Modifier { .. }) { return !repeat && self.route_modifier(ev, one); }
         one.key_repeat = repeat;
         let shown = self.keyboard_focus || self.hover_focus;

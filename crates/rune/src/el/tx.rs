@@ -24,6 +24,10 @@ pub struct Tx {
     pub(crate) physical_key: Option<crate::PhysicalKeyCode>,
     pub(crate) key_base: Option<char>,
     pub(crate) focused: Option<String>,
+    /// `Tx::focused_role`.
+    pub(crate) focused_role: Option<&'static str>,
+    /// `Tx::focused_editable`.
+    pub(crate) focused_editable: bool,
     pub(crate) instant: bool,
     pub(crate) motion: Option<Spring>,
     /// The layout curve from [`Tx::motion_curve`]; `motion` holds its spring stand-in.
