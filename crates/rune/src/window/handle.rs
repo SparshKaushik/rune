@@ -125,6 +125,12 @@ impl WindowHandle {
         Ok(())
     }
     pub fn is_maximized(&self) -> bool { self.window().is_ok_and(|w| w.is_maximized()) }
+    /// The light or dark frame the system draws around the window (X11's GTK theme variant,
+    /// Wayland's client-side decorations); `None` follows the system.
+    pub fn set_theme(&self, dark: Option<bool>) -> Result<(), String> {
+        self.window()?.set_theme(dark.map(|dark| if dark { Theme::Dark } else { Theme::Light }));
+        Ok(())
+    }
     /// Borrow a raw native handle while alive. Platform thread restrictions still apply;
     /// do not retain an extracted pointer beyond the callback.
     pub fn with_raw_handle<R>(&self, f: impl for<'a> FnOnce(winit::raw_window_handle::WindowHandle<'a>) -> R) -> Result<R, String> {
