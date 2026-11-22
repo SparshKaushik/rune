@@ -111,6 +111,20 @@ impl WindowHandle {
     /// apply once the window's host starts.
     pub fn open(&self) { self.send(|slot| WakeEvent::Window(slot, WindowRequest::Open(None))); }
     pub fn close(&self) { self.send(|slot| WakeEvent::Window(slot, WindowRequest::Close)); }
+    /// Borderless full screen on the window's current monitor; on macOS, its own Space.
+    /// Call on the event thread (any handler).
+    pub fn set_fullscreen(&self, on: bool) -> Result<(), String> {
+        self.window()?.set_fullscreen(on.then_some(winit::window::Fullscreen::Borderless(None)));
+        Ok(())
+    }
+    pub fn is_fullscreen(&self) -> bool { self.window().is_ok_and(|w| w.fullscreen().is_some()) }
+    /// Winit reports no maximize event: a maximize resizes the window, so read
+    /// [`Self::is_maximized`] when the size changes.
+    pub fn set_maximized(&self, on: bool) -> Result<(), String> {
+        self.window()?.set_maximized(on);
+        Ok(())
+    }
+    pub fn is_maximized(&self) -> bool { self.window().is_ok_and(|w| w.is_maximized()) }
     /// Borrow a raw native handle while alive. Platform thread restrictions still apply;
     /// do not retain an extracted pointer beyond the callback.
     pub fn with_raw_handle<R>(&self, f: impl for<'a> FnOnce(winit::raw_window_handle::WindowHandle<'a>) -> R) -> Result<R, String> {
