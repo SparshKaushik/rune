@@ -122,18 +122,34 @@ pub struct InlinePicture {
     pub(crate) size: [f32; 2],
     /// Its baseline in points from its top; `None` centres it on the text.
     pub(crate) baseline: Option<f32>,
+    /// Corner radius in points.
+    pub(crate) radius: f32,
+    /// A ring of this width in points and colour, inside its edge.
+    pub(crate) border: Option<(f32, crate::Color)>,
     pub(crate) copy: String,
 }
 
 impl InlinePicture {
     /// `pixels` drawn `width` by `height` points at the [`PICTURE_MARK`] that starts at byte `at`.
     pub fn new(at: usize, pixels: crate::Pixels, width: f32, height: f32) -> Self {
-        Self { at: at as u32, pixels, size: [width.max(0.0), height.max(0.0)], baseline: None, copy: String::new() }
+        Self { at: at as u32, pixels, size: [width.max(0.0), height.max(0.0)], baseline: None, radius: 0.0, border: None, copy: String::new() }
     }
 
     /// Sits its baseline, `from_top` points below its top, on the text's.
     pub fn baseline(mut self, from_top: f32) -> Self {
         self.baseline = Some(from_top);
+        self
+    }
+
+    /// Rounds its corners by `radius` points.
+    pub fn radius(mut self, radius: f32) -> Self {
+        self.radius = radius.max(0.0);
+        self
+    }
+
+    /// Rings it with a `width`-point border in `color`, drawn over its edge.
+    pub fn border(mut self, width: f32, color: crate::Color) -> Self {
+        self.border = (width > 0.0).then_some((width, color));
         self
     }
 

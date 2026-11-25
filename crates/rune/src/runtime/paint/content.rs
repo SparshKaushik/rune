@@ -312,10 +312,11 @@ impl<S: 'static> Runtime<S> {
                         if rect[1] > clip[3] || rect[1] + rect[3] < clip[1] || rect[0] > clip[2] || rect[0] + rect[2] < clip[0] {
                             continue;
                         }
+                        let radii = [(p.radius * s * tk).min(rect[2].min(rect[3]) * 0.5); 4];
                         if let Some(image) = self.images.place(&p.pixels, [rect[2], rect[3]]) {
                             self.instances.push(Instance {
                                 rect,
-                                radii: [0.0; 4],
+                                radii,
                                 fill: [0.0, 0.0, 0.0, o],
                                 border: [0.0; 4],
                                 params: [image.page as f32, KIND_IMAGE, image.premultiplied as u8 as f32, 1.0],
@@ -323,6 +324,12 @@ impl<S: 'static> Runtime<S> {
                                 clip,
                                 fade: crate::render::pack_fade(fade, clip, clip),
                             });
+                        }
+                        if let Some((width, color)) = p.border {
+                            let mut ring = rect_inst(rect, [0.0; 4], radii[0], clip, fade);
+                            ring.border = premul(color, o, srgb);
+                            ring.params[0] = width * s * tk;
+                            self.instances.push(ring);
                         }
                     }
                 }
