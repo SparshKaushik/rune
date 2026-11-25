@@ -38,6 +38,17 @@ pub struct WheelEvent {
     pub precise: bool,
 }
 
+/// What [`AppSpec::on_wheel`](crate::AppSpec) hears of a scroll before any element does: the
+/// event in window points, whether a horizontal scroller with room to move is under the pointer,
+/// and whether the pointer is in a modal or an element of role `dialog` or `alertdialog`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[non_exhaustive]
+pub struct WheelWatch {
+    pub event: WheelEvent,
+    pub scrolls_x: bool,
+    pub in_dialog: bool,
+}
+
 impl WheelEvent {
     /// A delta of (dx, dy) points. Hand it to [`crate::Runtime::wheel_event`] with
     /// [`WheelEvent::at`] in window points.

@@ -37,6 +37,9 @@ pub struct AppSpec<S: 'static> {
     /// (`Tx::focused` tells which); true consumes the key. The rune README's "Key routing"
     /// lists the whole order.
     pub on_key: Option<fn(&mut S, &KeyEvent, &mut Tx) -> bool>,
+    /// Every wheel and trackpad scroll, before the elements under the pointer hear it; it
+    /// can't take the scroll (a back/forward swipe watches the deltas as they pass).
+    pub on_wheel: Option<fn(&mut S, &crate::WheelWatch, &mut Tx)>,
 }
 
 impl<S: 'static> AppSpec<S> {
@@ -55,6 +58,7 @@ impl<S: 'static> AppSpec<S> {
             setup: None,
             poll: None,
             on_key: None,
+            on_wheel: None,
         }
     }
 }
@@ -137,6 +141,7 @@ pub(crate) fn runtime_for<S: 'static>(spec: &AppSpec<S>, state: S, size: (f32, f
     let mut rt = Runtime::with_text(state, spec.view, size, env, text);
     rt.poll = spec.poll;
     rt.on_key = spec.on_key;
+    rt.on_wheel = spec.on_wheel;
     rt.window_title.start(spec.title);
     rt.set_live_waker(waker.clone());
     #[cfg(feature = "hot")]

@@ -163,6 +163,7 @@ pub use input::canvas_input::MagnifyEvent;
 pub use input::canvas_input::PointerButton;
 pub use input::canvas_input::RotateEvent;
 pub use input::canvas_input::WheelEvent;
+pub use input::canvas_input::WheelWatch;
 pub use input::physical_input::PhysicalInput;
 pub use input::time::last_input;
 pub use latest::Latest;

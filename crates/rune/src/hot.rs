@@ -126,6 +126,7 @@ pub(crate) fn run_app<S: 'static>(app: crate::App<S>, mut args: Args) {
         poll: Some(|s: &mut HostState, t, tx| (s.poll)(s, t, tx)),
         setup: Some(|s: &mut HostState, wake| (s.setup)(s, wake)),
         on_key: Some(|s: &mut HostState, key, tx| (s.key)(s, key, tx)),
+        on_wheel: None,
     };
     let state = HostState { value, spec: Box::new(spec), view: view_adapter::<S>, poll: poll_adapter::<S>, setup: setup_adapter::<S>, key: key_adapter::<S> };
     run_host(shell, state, args, (srgb_blend, font_smoothing), modifier_keys);

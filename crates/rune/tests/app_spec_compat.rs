@@ -15,6 +15,7 @@ fn legacy_spec() -> AppSpec<()> {
         setup: None,
         poll: None,
         on_key: None,
+        on_wheel: None,
     }
 }
 

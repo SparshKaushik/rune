@@ -6,7 +6,7 @@ fn window_panel_builders_preserve_exhaustive_literals_and_default_inference() {
     let spec = AppSpec {
         title: "compat", size: (300.0, 100.0), min_size: None, init: || (), view,
         scenes: &[("scene", |_| {})], fonts: &[], families: ("Inter", "Inter"),
-        setup: None, poll: Some(|_, _, _| false), on_key: Some(|_, _, _| false),
+        setup: None, poll: Some(|_, _, _| false), on_key: Some(|_, _, _| false), on_wheel: None,
     };
     let options = WindowOptions {
         transparent: true, borderless: true, click_through: false, always_on_top: false,

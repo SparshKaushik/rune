@@ -21,6 +21,10 @@ impl<S: 'static> Runtime<S> {
     /// phase. The innermost [`El::on_wheel`] handler there hears it first, up to the nearest
     /// scroll view; what none takes scrolls as [`Self::wheel_xy`] does.
     pub fn wheel_event(&mut self, ev: WheelEvent) {
+        if self.on_wheel.is_some() {
+            let watch = self.wheel_watch(ev);
+            self.queue.push(Action::AppWheel(watch));
+        }
         if ev.phase == GesturePhase::Began { self.wheel_began(); }
         let moved = ev.dx != 0.0 || ev.dy != 0.0;
         if moved {
@@ -33,6 +37,27 @@ impl<S: 'static> Runtime<S> {
             if !self.offer_wheel(gesture, ev) { self.wheel_scroll_for(gesture, ev.x, ev.y, ev.dx, ev.dy); }
         }
         if ev.phase == GesturePhase::Ended { self.wheel_ended(); }
+    }
+
+    /// What `AppSpec::on_wheel` hears of `ev`, from the tree under the pointer now.
+    fn wheel_watch(&self, ev: WheelEvent) -> crate::WheelWatch {
+        let scrolls_x = self.scroll_at_axis(ev.x, ev.y, true).and_then(|id| self.scrolls.get(&id)).is_some_and(|s| s.x.max > 0.0);
+        let hit = (0..self.nodes.len()).rev().find(|&i| self.allowed(i) && self.node_contains(i, ev.x, ev.y));
+        let in_dialog = self.active_modal().is_some() || std::iter::successors(hit, |&i| self.nodes[i].parent).any(|i| matches!(self.nodes[i].role, "dialog" | "alertdialog"));
+        crate::WheelWatch { event: ev, scrolls_x, in_dialog }
+    }
+
+    /// `AppSpec::on_wheel` on a queued watch; it never takes the scroll.
+    pub(super) fn run_app_wheel(&mut self, watch: crate::WheelWatch, tx: &mut Tx) -> bool {
+        let Some(f) = self.on_wheel else { return false };
+        let state = match &mut self.playground {
+            Some(playground) => playground.key_state(&mut self.state),
+            None => Some(&mut self.state),
+        };
+        state.is_some_and(|state| {
+            f(state, &watch, tx);
+            true
+        })
     }
 
     /// Queues `ev` for the `on_wheel` handlers it may go to; false leaves it to scrolling now.

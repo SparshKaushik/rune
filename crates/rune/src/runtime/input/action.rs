@@ -41,6 +41,8 @@ pub(super) enum Action {
     /// A wheel delta at window point (x, y) for the `on_wheel` handlers at the pointer,
     /// innermost first (`runtime/input/gesture.rs`).
     Wheel(u64, Vec<String>, crate::WheelEvent),
+    /// `AppSpec::on_wheel`, queued ahead of the delta's own `Wheel`.
+    AppWheel(crate::WheelWatch),
     Gesture(Vec<String>, gesture_dispatch::Gesture),
     Ime(Ime),
     Paste(crate::ClipboardContent, Option<Option<String>>),
@@ -435,6 +437,7 @@ impl<S: 'static> Runtime<S> {
             }
             Action::KeyUp(ev) => self.route_key_up(&ev, &mut one),
             Action::Wheel(gesture, chain, ev) => self.run_wheel(gesture, chain, ev, &mut one),
+            Action::AppWheel(watch) => self.run_app_wheel(watch, &mut one),
             Action::Gesture(chain, gesture) => self.run_gesture(chain, gesture, &mut one),
             Action::Ime(ev) => self.run_ime(ev, &mut one),
             Action::Paste(content, target) => {
