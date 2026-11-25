@@ -58,6 +58,8 @@ pub struct TextSpec {
     /// Visual palette for rich block and inline decorations.
     /// [`Mark::Pill`](crate::Mark::Pill) chips in `content`, sorted.
     pub(crate) pills: Vec<crate::text::PillChip>,
+    /// See [`El::picture`](crate::El::picture), by mark, sorted.
+    pub(crate) pictures: Vec<crate::text::InlinePicture>,
     /// See [`El::pill_colors`](crate::El::pill_colors).
     pub(crate) pill_colors: Option<(Color, Option<Color>)>,
     pub(crate) rich_style: crate::edit::RichStyle,
@@ -105,13 +107,13 @@ impl TextSpec {
     /// this commit reuses it. Secure text keeps no content-derived key.
     pub(crate) fn key_shape(&mut self, scale: f32) {
         self.shape = (!self.redacted)
-            .then(|| (scale.to_bits(), crate::text::shape_key(&self.content, &self.spans, self.style, scale, self.wrap_anywhere, &self.pills)));
+            .then(|| (scale.to_bits(), crate::text::shape_key(&self.content, &self.spans, self.style, scale, self.wrap_anywhere, &self.pills, &self.pictures)));
     }
 
     /// The key [`Self::key_shape`] kept at `scale`.
     pub(crate) fn shape_key(&self, scale: f32) -> Option<u64> {
         let (_, key) = self.shape.filter(|s| s.0 == scale.to_bits())?;
-        debug_assert_eq!(key, crate::text::shape_key(&self.content, &self.spans, self.style, scale, self.wrap_anywhere, &self.pills),
+        debug_assert_eq!(key, crate::text::shape_key(&self.content, &self.spans, self.style, scale, self.wrap_anywhere, &self.pills, &self.pictures),
             "a text changed after its shape key was taken");
         Some(key)
     }
@@ -138,15 +140,19 @@ impl TextSpec {
     }
 
     /// The authored text of `content[start..end]` as copying takes it, without its
-    /// [`El::uncopied`](crate::El::uncopied) bytes.
+    /// [`El::uncopied`](crate::El::uncopied) bytes and with each picture's copy text for its mark.
     pub(crate) fn copy_slice(&self, start: u32, end: u32) -> Option<String> {
         if self.redacted {
             return None;
         }
+        let mut cuts: Vec<(u32, u32, &str)> = self.uncopied.iter().map(|&(a, b)| (a, b, "")).collect();
+        cuts.extend(self.pictures.iter().map(|p| (p.mark().start, p.mark().end, p.copy.as_str())));
+        cuts.sort_by_key(|c| c.0);
         let mut out = String::new();
         let mut at = start;
-        for &(a, b) in self.uncopied.iter().filter(|r| r.1 > start && r.0 < end) {
+        for &(a, b, with) in cuts.iter().filter(|r| r.1 > start && r.0 < end) {
             if a > at { out.push_str(self.source_slice(at, a)?); }
+            if a >= at { out.push_str(with); }
             at = at.max(b);
         }
         if at < end { out.push_str(self.source_slice(at, end)?); }
@@ -180,6 +186,7 @@ impl TextSpec {
         self.blocks.clear();
         self.soft_breaks.clear();
         self.pills.clear();
+        self.pictures.clear();
         self.uncopied.clear();
         self.wrap = false;
         self.wrap_anywhere = false;
@@ -219,6 +226,9 @@ impl TextSpec {
         }
         for r in &mut self.uncopied {
             *r = (source.shown(r.0, false), source.shown(r.1, true));
+        }
+        for p in &mut self.pictures {
+            p.at = source.shown(p.at, false);
         }
         for r in &mut self.rings {
             (r.0, r.1) = (source.shown(r.0, false), source.shown(r.1, true));

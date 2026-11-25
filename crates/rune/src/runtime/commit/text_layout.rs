@@ -186,7 +186,7 @@ fn spec_elide_keys(spec: &TextSpec, scale: f32, mode: u8, param: usize, max_w: f
         return None;
     }
     let shape = spec.shape_key(scale).unwrap_or_else(|| {
-        crate::text::shape_key(&spec.content, &spec.spans, spec.style, scale, spec.wrap_anywhere, &spec.pills)
+        crate::text::shape_key(&spec.content, &spec.spans, spec.style, scale, spec.wrap_anywhere, &spec.pills, &spec.pictures)
     });
     let blocks = spec.blocks.iter().any(|&b| b != crate::edit::Block::Paragraph).then_some(spec.blocks.as_slice());
     Some((shape, crate::text::elide_key(shape, mode, param, max_w, align, blocks)))

@@ -88,7 +88,7 @@ pub use atlas::{ATLAS_SIZE, Atlas, AtlasPage, GlyphQuad};
 pub(crate) use cursor::{cursor_from_point, cursor_geometry, line_edge, move_line, range_boxes};
 pub use decorations::Deco;
 pub(crate) use decorations::PaintedDeco;
-pub use span::{Ink, Link, LinkPaint, Span, TextHighlight};
+pub use span::{InlinePicture, Ink, Link, LinkPaint, PICTURE_MARK, Span, TextHighlight};
 pub(crate) use span::{PillChip, PillMetrics, flatten_spans};
 
 use decorations::Decoration;
@@ -98,6 +98,7 @@ use atlas::{MAX_OVERFLOW_PAGES, MAX_STEADY_PAGES};
 #[cfg(test)]
 pub(crate) use glyph_emit::GLIDE_PHASES;
 use line_break::break_lines_with_blocks;
+pub(crate) use span::PICTURE_BOX;
 use span::PILL_BOX;
 use system_fonts::{
     LoadedFiles, SYMBOL_FAMILIES, SYMBOL_FONT_FILES, family_list, load_families, load_system_mono, names_system_mono,
@@ -434,6 +435,7 @@ impl TextSystem {
         spans: &[Span],
         blocks: &[crate::edit::Block],
         pills: &[PillChip],
+        pictures: &[InlinePicture],
         style: TextStyle,
         scale: f32,
         max_width: Option<f32>,
@@ -447,7 +449,7 @@ impl TextSystem {
         // Shaping depends on the text, spans, style, scale, overflow-wrap and pills; line
         // breaking adds the width, alignment and block indents. A layout cached at one width
         // is re-broken at another rather than shaped again.
-        let shape_key = shape.unwrap_or_else(|| shape_key(text, spans, style, scale, wrap_anywhere, pills));
+        let shape_key = shape.unwrap_or_else(|| shape_key(text, spans, style, scale, wrap_anywhere, pills, pictures));
         let key = hash::break_key(shape_key, max_width, align, has_indented_blocks.then_some(blocks));
         let g = self.generation;
         if cache && let Some(Entry { value: l, used, .. }) = self.layouts.get_mut(&key) {
@@ -719,6 +721,22 @@ impl TextSystem {
                         vertical_align: parley::VerticalAlign::BASELINE,
                     });
                 }
+            }
+            // A picture's box stands before its mark, which shapes to nothing.
+            for (i, p) in pictures.iter().enumerate() {
+                let at = p.at as usize;
+                if !text[at.min(text.len())..].starts_with(PICTURE_MARK) {
+                    continue;
+                }
+                b.push_inline_box(parley::InlineBox {
+                    id: PICTURE_BOX | i as u64,
+                    kind: parley::InlineBoxKind::InFlow,
+                    index: at,
+                    width: p.size[0] * scale,
+                    height: p.size[1] * scale,
+                    baseline: p.baseline.map(|v| v * scale),
+                    vertical_align: if p.baseline.is_some() { parley::VerticalAlign::BASELINE } else { parley::VerticalAlign::MIDDLE },
+                });
             }
             let mut layout: Layout<Ink> = b.build(text);
             break_lines(&mut layout);

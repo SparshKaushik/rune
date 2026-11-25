@@ -302,6 +302,31 @@ impl<S: 'static> Runtime<S> {
                     self.instances.push(inst);
                 }
             }
+            // Inline pictures, under the selection's tint.
+            if !spec.pictures.is_empty() {
+                for line in layout.lines() {
+                    for item in line.items() {
+                        let parley::PositionedLayoutItem::InlineBox(b) = item else { continue };
+                        let Some(p) = (b.id & crate::text::PICTURE_BOX != 0).then(|| spec.pictures.get((b.id & !crate::text::PICTURE_BOX) as usize)).flatten() else { continue };
+                        let rect = [rest_origin[0] + glide[0] + b.x * tk, rest_origin[1] + glide[1] + b.y * tk, b.width * tk, b.height * tk];
+                        if rect[1] > clip[3] || rect[1] + rect[3] < clip[1] || rect[0] > clip[2] || rect[0] + rect[2] < clip[0] {
+                            continue;
+                        }
+                        if let Some(image) = self.images.place(&p.pixels, [rect[2], rect[3]]) {
+                            self.instances.push(Instance {
+                                rect,
+                                radii: [0.0; 4],
+                                fill: [0.0, 0.0, 0.0, o],
+                                border: [0.0; 4],
+                                params: [image.page as f32, KIND_IMAGE, image.premultiplied as u8 as f32, 1.0],
+                                uv: image.rect.map(|v| v as f32),
+                                clip,
+                                fade: crate::render::pack_fade(fade, clip, clip),
+                            });
+                        }
+                    }
+                }
+            }
             if spec.selectable && let Some((a, b)) = selectable::range_in(sel_ranges, i) {
                 let (a, b) = n.elided.map_or((a, b), |e| e.range(a, b));
                 selectable::push_selection(&mut self.instances, layout, a, b, origin, tk, premul(spec.selection, o, srgb), s, clip, fade);

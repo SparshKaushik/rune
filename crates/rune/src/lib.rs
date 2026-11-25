@@ -293,6 +293,8 @@ pub use system_material::MAX_NATIVE_MATERIALS;
 pub use system_material::SystemMaterial;
 pub use text::FontSmoothing;
 pub use text::Icon;
+pub use text::InlinePicture;
+pub use text::PICTURE_MARK;
 pub use text::Link;
 pub use text::LinkPaint;
 pub use text::Span;

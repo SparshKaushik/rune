@@ -3,7 +3,7 @@
 //! measuring and re-breaking a long paragraph doesn't rehash its bytes.
 use std::hash::{Hash, Hasher};
 
-use super::{PillChip, Span};
+use super::{InlinePicture, PillChip, Span};
 use crate::tok::{OpticalSize, TextStyle};
 
 /// A fast, non-cryptographic hasher: bytes go through `rustc_hash`'s string hash and each word
@@ -50,15 +50,18 @@ pub fn text_hash(text: &str, spans: &[Span], style: TextStyle, scale: f32, width
 }
 
 /// What shaping depends on: the text, its spans, style and scale, overflow-wrap and pills.
-pub(crate) fn shape_key(text: &str, spans: &[Span], style: TextStyle, scale: f32, wrap_anywhere: bool, pills: &[PillChip]) -> u64 {
+pub(crate) fn shape_key(text: &str, spans: &[Span], style: TextStyle, scale: f32, wrap_anywhere: bool, pills: &[PillChip], pictures: &[InlinePicture]) -> u64 {
     let key = text_hash(text, spans, style, scale, None);
-    if !wrap_anywhere && pills.is_empty() {
+    if !wrap_anywhere && pills.is_empty() && pictures.is_empty() {
         return key;
     }
     let mut h = KeyHasher::default();
     (key, wrap_anywhere).hash(&mut h);
     for p in pills {
         (p.start, p.end, p.icon.is_some()).hash(&mut h);
+    }
+    for p in pictures {
+        (p.at, p.size.map(f32::to_bits), p.baseline.map(f32::to_bits)).hash(&mut h);
     }
     h.finish()
 }

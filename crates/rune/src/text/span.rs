@@ -106,6 +106,51 @@ impl PillMetrics {
     }
 }
 
+/// The character an [`InlinePicture`] stands on in a text's content: it draws nothing, takes no
+/// width and keeps a line from breaking before the picture.
+pub const PICTURE_MARK: char = '\u{2060}';
+
+/// A picture laid out in a line of text, as an inline image in a paragraph: it wraps with the
+/// words around it, a line grows to hold it, and a selection over its mark covers it. Copying
+/// takes [`copy_as`](Self::copy_as) in its place.
+#[derive(Clone, Debug)]
+pub struct InlinePicture {
+    /// The byte of the content its [`PICTURE_MARK`] starts at.
+    pub(crate) at: u32,
+    pub(crate) pixels: crate::Pixels,
+    /// Its size in points.
+    pub(crate) size: [f32; 2],
+    /// Its baseline in points from its top; `None` centres it on the text.
+    pub(crate) baseline: Option<f32>,
+    pub(crate) copy: String,
+}
+
+impl InlinePicture {
+    /// `pixels` drawn `width` by `height` points at the [`PICTURE_MARK`] that starts at byte `at`.
+    pub fn new(at: usize, pixels: crate::Pixels, width: f32, height: f32) -> Self {
+        Self { at: at as u32, pixels, size: [width.max(0.0), height.max(0.0)], baseline: None, copy: String::new() }
+    }
+
+    /// Sits its baseline, `from_top` points below its top, on the text's.
+    pub fn baseline(mut self, from_top: f32) -> Self {
+        self.baseline = Some(from_top);
+        self
+    }
+
+    /// The text copying takes for it, such as a formula's source.
+    pub fn copy_as(mut self, text: impl Into<String>) -> Self {
+        self.copy = text.into();
+        self
+    }
+
+    pub(crate) fn mark(&self) -> std::ops::Range<u32> {
+        self.at..self.at + PICTURE_MARK.len_utf8() as u32
+    }
+}
+
+/// Tags the inline boxes that hold [`InlinePicture`]s: the rest of the id is the picture's index.
+pub(crate) const PICTURE_BOX: u64 = 1 << 61;
+
 /// Tags the inline boxes around pill labels: the rest of the id is the pill's index shifted
 /// left once, with the low bit set on the box after the label.
 pub(super) const PILL_BOX: u64 = 1 << 62;

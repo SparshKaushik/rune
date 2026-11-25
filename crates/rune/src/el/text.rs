@@ -440,6 +440,18 @@ impl El {
         self.inert = true;
         self
     }
+    /// Lays `picture` out in this text at its [`PICTURE_MARK`](crate::PICTURE_MARK), which must
+    /// start at its byte; one elsewhere is ignored.
+    pub fn picture(mut self, picture: crate::InlinePicture) -> Self {
+        if let Some(t) = &mut self.text
+            && t.content.get(picture.at as usize..).is_some_and(|rest| rest.starts_with(crate::PICTURE_MARK))
+            && !t.pictures.iter().any(|p| p.at == picture.at)
+        {
+            let at = t.pictures.partition_point(|p| p.at < picture.at);
+            t.pictures.insert(at, picture);
+        }
+        self
+    }
     /// Bytes of [`El::selectable`] text that draw but aren't copied, such as the spacing
     /// characters Markdown pads inline code with. A double-click's word stops at them.
     pub fn uncopied(mut self, range: std::ops::Range<usize>) -> Self {

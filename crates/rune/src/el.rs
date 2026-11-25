@@ -624,6 +624,7 @@ pub fn text(content: impl Into<String>) -> El {
         blocks: Vec::new(),
         soft_breaks: Vec::new(),
         pills: Vec::new(),
+        pictures: Vec::new(),
         pill_colors: None,
         rich_style: crate::edit::RichStyle::default(),
         redacted: false,
