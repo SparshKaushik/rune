@@ -84,6 +84,14 @@ impl Pixels {
         (frame.width, frame.height)
     }
 
+    /// Reads the image `set` stored last: its width, height, generation and straight-alpha sRGB
+    /// rows (empty for an image decoded with mips). For a compositor that draws it itself, such as
+    /// on a 3D surface, uploading only when the generation changes.
+    pub fn read<R>(&self, f: impl FnOnce(u32, u32, u64, &[u8]) -> R) -> R {
+        let frame = self.frame.lock().unwrap();
+        f(frame.width, frame.height, frame.generation, &frame.rgba)
+    }
+
     pub(crate) fn signature(&self) -> (u64, u64) {
         let frame = self.frame.lock().unwrap();
         (self.id, frame.generation)
