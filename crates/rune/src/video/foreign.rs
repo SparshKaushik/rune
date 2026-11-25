@@ -1,37 +1,44 @@
-//! Ogg (Vorbis, Opus) and WebM/Matroska audio, which AVFoundation can't read: decoded in Rust
-//! to 16-bit PCM, streamed to a temporary WAV file that AVPlayer then plays. Only the
-//! compressed clip is held in memory while it decodes.
+//! Audio decoded in Rust to 16-bit PCM. On macOS: Ogg (Vorbis, Opus) and WebM/Matroska,
+//! which AVFoundation can't read, streamed to a temporary WAV file that AVPlayer then plays;
+//! only the compressed clip is held in memory while it decodes. On Linux: every clip, for
+//! `linux.rs` to play.
 
+#[cfg(target_os = "macos")]
 use std::io::{BufWriter, Seek, SeekFrom, Write};
+#[cfg(target_os = "macos")]
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::sync::atomic::{AtomicU64, Ordering};
 use symphonia::core::audio::SampleBuffer;
-use symphonia::core::codecs::{CODEC_TYPE_OPUS, CODEC_TYPE_VORBIS, DecoderOptions};
+use symphonia::core::codecs::{CODEC_TYPE_NULL, CODEC_TYPE_OPUS, DecoderOptions};
 use symphonia::core::errors::Error;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
+#[cfg(target_os = "macos")]
 /// A WAV's sizes are 32-bit: at most this many 16-bit samples (about 6 hours of 48 kHz stereo).
 const MAX_SAMPLES: u64 = (u32::MAX as u64 - 36) / 2;
+#[cfg(target_os = "macos")]
 const TOO_LONG: &str = "too long to decode (a WAV holds about 6 hours of 48 kHz stereo)";
 
 /// What a decode produced.
-struct Format {
-    rate: u32,
-    channels: u16,
+pub(super) struct Format {
+    pub rate: u32,
+    pub channels: u16,
     /// Interleaved samples to keep, when the container says where the clip ends.
-    keep: Option<u64>,
+    pub keep: Option<u64>,
 }
 
 /// An Ogg or EBML (WebM, Matroska) stream, by its first bytes.
+#[cfg(target_os = "macos")]
 pub(super) fn sniff(bytes: &[u8]) -> bool {
     bytes.starts_with(b"OggS") || bytes.starts_with(&[0x1a, 0x45, 0xdf, 0xa3])
 }
 
-/// Decodes the first Vorbis or Opus track, handing `push` interleaved samples as they come.
-fn decode(bytes: Vec<u8>, push: &mut dyn FnMut(&[i16]) -> Result<(), String>) -> Result<Format, String> {
+/// Decodes the first audio track, handing `push` interleaved samples as they come.
+pub(super) fn decode(bytes: Vec<u8>, push: &mut dyn FnMut(&[i16]) -> Result<(), String>) -> Result<Format, String> {
     let fail = |e: Error| format!("can't decode this audio: {e}");
     let ogg = bytes.starts_with(b"OggS");
     let stream = MediaSourceStream::new(Box::new(std::io::Cursor::new(bytes)), Default::default());
@@ -43,13 +50,13 @@ fn decode(bytes: Vec<u8>, push: &mut dyn FnMut(&[i16]) -> Result<(), String>) ->
     let track = format
         .tracks()
         .iter()
-        .find(|t| matches!(t.codec_params.codec, CODEC_TYPE_VORBIS | CODEC_TYPE_OPUS))
-        .ok_or("no Vorbis or Opus audio track")?;
+        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+        .ok_or("no audio track")?;
     let (id, params) = (track.id, track.codec_params.clone());
     let mut decoder = if params.codec == CODEC_TYPE_OPUS {
         Decoder::Opus(Opus::new(params.extra_data.as_deref().unwrap_or_default())?)
     } else {
-        Decoder::Vorbis(symphonia::default::get_codecs().make(&params, &DecoderOptions::default()).map_err(fail)?, None)
+        Decoder::Symphonia(symphonia::default::get_codecs().make(&params, &DecoderOptions::default()).map_err(fail)?, None)
     };
     let mut out = Format { rate: params.sample_rate.unwrap_or(48_000), channels: 0, keep: None };
     loop {
@@ -62,7 +69,7 @@ fn decode(bytes: Vec<u8>, push: &mut dyn FnMut(&[i16]) -> Result<(), String>) ->
             continue;
         }
         match &mut decoder {
-            Decoder::Vorbis(d, buffer) => match d.decode(&packet) {
+            Decoder::Symphonia(d, buffer) => match d.decode(&packet) {
                 Ok(audio) => {
                     let spec = *audio.spec();
                     out.rate = spec.rate;
@@ -93,7 +100,7 @@ fn decode(bytes: Vec<u8>, push: &mut dyn FnMut(&[i16]) -> Result<(), String>) ->
 }
 
 enum Decoder {
-    Vorbis(Box<dyn symphonia::core::codecs::Decoder>, Option<SampleBuffer<i16>>),
+    Symphonia(Box<dyn symphonia::core::codecs::Decoder>, Option<SampleBuffer<i16>>),
     Opus(Opus),
 }
 
@@ -144,6 +151,7 @@ impl Opus {
     }
 }
 
+#[cfg(target_os = "macos")]
 /// The 44-byte header of a 16-bit PCM WAV holding `samples` interleaved samples.
 fn header(rate: u32, channels: u16, samples: u64) -> Result<[u8; 44], String> {
     let too_long = || TOO_LONG.to_string();
@@ -175,8 +183,10 @@ fn header(rate: u32, channels: u16, samples: u64) -> Result<[u8; 44], String> {
 }
 
 /// A decoded clip on disk for AVPlayer, removed when dropped.
+#[cfg(target_os = "macos")]
 pub(super) struct Wav(PathBuf);
 
+#[cfg(target_os = "macos")]
 impl Wav {
     /// Decodes an Ogg or WebM clip into a new WAV file, streaming its samples to disk.
     pub fn decode(bytes: Vec<u8>) -> Result<Self, String> {
@@ -217,12 +227,14 @@ impl Wav {
     }
 }
 
+#[cfg(target_os = "macos")]
 impl Drop for Wav {
     fn drop(&mut self) {
         let _ = std::fs::remove_file(&self.0);
     }
 }
 
+#[cfg(target_os = "macos")]
 /// Removes files a process that didn't exit cleanly left a day or more ago.
 fn sweep(dir: &Path) {
     let Ok(entries) = std::fs::read_dir(dir) else { return };
@@ -235,7 +247,7 @@ fn sweep(dir: &Path) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::*;
 

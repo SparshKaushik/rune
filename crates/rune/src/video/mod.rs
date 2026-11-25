@@ -23,19 +23,25 @@
 //! on the thread that made it, from the first frame or edit after `play`: pausing, seeking,
 //! rate, looping and the end (which wakes the app's waker) all as in a window, silently.
 //!
-//! Other platforms report [`PlayerState::Failed`] and draw a neutral placeholder for video.
+//! On Linux, with the default `linux-audio` feature, audio decodes in Rust and plays through
+//! ALSA (see `linux.rs`). Video there, and anything on other platforms, reports
+//! [`PlayerState::Failed`] and draws a neutral placeholder.
 
-#[cfg(all(target_os = "macos", feature = "ogg-audio"))]
+#[cfg(any(all(target_os = "macos", feature = "ogg-audio"), all(target_os = "linux", feature = "linux-audio")))]
 mod foreign;
+#[cfg(all(target_os = "linux", feature = "linux-audio"))]
+mod linux;
+#[cfg(all(target_os = "linux", feature = "linux-audio"))]
+use linux as backend;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
 use macos as backend;
 #[cfg(all(test, target_os = "macos"))]
 pub(crate) use macos::test_frames;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", all(target_os = "linux", feature = "linux-audio"))))]
 mod unsupported;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", all(target_os = "linux", feature = "linux-audio"))))]
 use unsupported as backend;
 
 use crate::native_surface::{ByteFrame, ColorInfo, Format, NativeSurface};

@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["accessibility", "dbus", "embedded-fonts", "metal-backend", "ogg-audio", "svg"]
+default = ["accessibility", "dbus", "embedded-fonts", "linux-audio", "metal-backend", "ogg-audio", "svg"]
 # On web, bundle Inter (Regular, Medium, SemiBold) and IBM Plex Mono as built-in fallback fonts.
 # Disable when AppSpec::fonts supplies the app's own fonts to omit the bytes from the wasm.
 # Native builds always bundle Inter.
@@ -27,6 +27,9 @@ macos-background-cursor = []
 # decoding it in Rust (symphonia, opuscule) and handing AVPlayer the PCM. Off, those clips
 # fail at once with a clear message.
 ogg-audio = ["dep:symphonia", "dep:opuscule"]
+# Linux: play audio clips (mp3, AAC/m4a, wav, flac, Ogg Vorbis and Opus, WebM Opus), decoded in
+# Rust and written to ALSA through libasound, loaded at run time. Off, audio fails as video does.
+linux-audio = ["dep:symphonia", "dep:opuscule", "dep:ureq"]
 # SVG and SVGZ images (`ImageCache::svg`, `file`, `load_mime`, and `load` on sniffed SVG bytes), and
 # scalable Linux app icons, rasterized by resvg. Off, those images resolve to `Image::error`.
 svg = ["dep:resvg"]
@@ -164,6 +167,9 @@ libloading = "0.8"
 zbus = { version = "6", default-features = false, features = ["tokio", "proxy", "service"], optional = true }
 tokio = { version = "1", features = ["rt", "net", "time", "sync", "macros"], optional = true }
 futures-util = { version = "0.3", optional = true }
+symphonia = { version = "0.5.5", optional = true, default-features = false, features = ["ogg", "vorbis", "mkv", "mp3", "aac", "isomp4", "wav", "pcm", "flac"] }
+opuscule = { version = "0.2.2", optional = true }
+ureq = { version = "2", optional = true, default-features = false, features = ["tls"] }
 
 [target.'cfg(all(not(target_vendor = "apple"), not(target_arch = "wasm32")))'.dependencies]
 wgpu = { version = "30", default-features = false, features = ["vulkan", "dx12"] }
