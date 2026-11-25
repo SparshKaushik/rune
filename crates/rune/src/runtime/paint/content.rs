@@ -313,10 +313,13 @@ impl<S: 'static> Runtime<S> {
                             continue;
                         }
                         let radii = [(p.radius * s * tk).min(rect[2].min(rect[3]) * 0.5); 4];
-                        if let Some(image) = self.images.place(&p.pixels, [rect[2], rect[3]]) {
+                        // As a CSS border-box: the ring takes the box's edge, the picture fills inside it.
+                        let bw = p.border.map_or(0.0, |(width, _)| (width * s * tk).min(rect[2].min(rect[3]) * 0.5));
+                        let inner = [rect[0] + bw, rect[1] + bw, rect[2] - 2.0 * bw, rect[3] - 2.0 * bw];
+                        if let Some(image) = self.images.place(&p.pixels, [inner[2], inner[3]]) {
                             self.instances.push(Instance {
-                                rect,
-                                radii,
+                                rect: inner,
+                                radii: radii.map(|r| (r - bw).max(0.0)),
                                 fill: [0.0, 0.0, 0.0, o],
                                 border: [0.0; 4],
                                 params: [image.page as f32, KIND_IMAGE, image.premultiplied as u8 as f32, 1.0],
@@ -328,7 +331,7 @@ impl<S: 'static> Runtime<S> {
                         if let Some((width, color)) = p.border {
                             let mut ring = rect_inst(rect, [0.0; 4], radii[0], clip, fade);
                             ring.border = premul(color, o, srgb);
-                            ring.params[0] = width * s * tk;
+                            ring.params[0] = bw;
                             self.instances.push(ring);
                         }
                     }

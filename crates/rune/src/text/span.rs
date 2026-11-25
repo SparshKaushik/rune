@@ -147,7 +147,8 @@ impl InlinePicture {
         self
     }
 
-    /// Rings it with a `width`-point border in `color`, drawn over its edge.
+    /// Rings it with a `width`-point border in `color` at its edge, the picture inset inside it
+    /// (a CSS border-box).
     pub fn border(mut self, width: f32, color: crate::Color) -> Self {
         self.border = (width > 0.0).then_some((width, color));
         self
